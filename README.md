@@ -12,6 +12,10 @@ server picker: a checkbox list of Appian SQL hosts, with names and IPs.
 | Milky Way | sql-milkyway.appian.trimblemaps.com | 192.168.224.202 |
 | Fireworks | sql-fireworks.appian.trimblemaps.com | 192.168.224.80 |
 | LAW SQL 01 | law-sql01.appian.trimblemaps.com | 192.168.224.174 |
+| 10.228.2.38 | — | 10.228.2.38 |
+| 192.168.224.61 | — | 192.168.224.61 |
+| SQL 01 Staging | sql01.staging.appiantesting.com | 192.168.208.48 |
+| LAW SQL 02 Staging | law-sql02.staging.appiantesting.com | 192.168.208.48 |
 
 IPs are resolved from DNS when the page loads, and fall back to the values
 above if lookup fails.

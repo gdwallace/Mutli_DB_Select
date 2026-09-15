@@ -50,7 +50,9 @@
                 />
                 <span class="server-copy">
                   <span class="server-name">{{ server.name }}</span>
+                  {% if server.host and server.host != server.name and server.host != server.ip %}
                   <span class="server-host">{{ server.host }}</span>
+                  {% endif %}
                 </span>
                 <span class="server-ip">{{ server.ip }}</span>
               </label>

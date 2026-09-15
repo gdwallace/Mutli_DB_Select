@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ipaddress
 import json
 import socket
 from functools import lru_cache
@@ -20,6 +21,10 @@ def load_server_catalog() -> list[dict]:
 @lru_cache(maxsize=32)
 def resolve_ip(host: str) -> str | None:
     try:
+        return str(ipaddress.ip_address(host))
+    except ValueError:
+        pass
+    try:
         return socket.gethostbyname(host)
     except socket.gaierror:
         return None
@@ -28,10 +33,12 @@ def resolve_ip(host: str) -> str | None:
 def servers_with_addresses() -> list[dict]:
     servers = []
     for server in load_server_catalog():
-        resolved = resolve_ip(server["host"])
+        host = server.get("host")
+        resolved = resolve_ip(host) if host else None
         servers.append(
             {
                 **server,
+                "host": host or "",
                 "ip": resolved or server.get("ip") or "—",
             }
         )

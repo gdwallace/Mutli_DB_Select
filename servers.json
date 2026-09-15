@@ -28,5 +28,27 @@
     "name": "LAW SQL 01",
     "host": "law-sql01.appian.trimblemaps.com",
     "ip": "192.168.224.174"
+  },
+  {
+    "id": "10-228-2-38",
+    "name": "10.228.2.38",
+    "ip": "10.228.2.38"
+  },
+  {
+    "id": "192-168-224-61",
+    "name": "192.168.224.61",
+    "ip": "192.168.224.61"
+  },
+  {
+    "id": "sql01-staging",
+    "name": "SQL 01 Staging",
+    "host": "sql01.staging.appiantesting.com",
+    "ip": "192.168.208.48"
+  },
+  {
+    "id": "law-sql02-staging",
+    "name": "LAW SQL 02 Staging",
+    "host": "law-sql02.staging.appiantesting.com",
+    "ip": "192.168.208.48"
   }
 ]
