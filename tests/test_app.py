@@ -30,6 +30,7 @@ def test_index_lists_each_server_name_and_host():
     assert "workspace" in page
     assert "database-scroll" in page
     assert "results-scroll" in page
+    assert 'id="export-csv"' in page
     for server in load_server_catalog():
         assert server["name"] in page
         if server.get("host"):

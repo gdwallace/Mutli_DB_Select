@@ -20,6 +20,9 @@ const runButton = document.getElementById("run-query");
 const queryError = document.getElementById("query-error");
 const resultsList = document.getElementById("results-list");
 const resultsCopy = document.getElementById("results-copy");
+const exportButton = document.getElementById("export-csv");
+
+let lastExportResults = [];
 
 function selectedIds() {
   return checkboxes.filter((box) => box.checked).map((box) => box.value);
@@ -291,8 +294,82 @@ function visibleQueryResults(results) {
   });
 }
 
+function csvEscape(value) {
+  const text = value == null ? "" : String(value);
+  if (/[",\r\n]/.test(text)) {
+    return `"${text.replaceAll('"', '""')}"`;
+  }
+  return text;
+}
+
+function resultsToCsv(results) {
+  const hits = results.filter(
+    (result) => result.ok && result.rowCount > 0 && result.columns?.length
+  );
+  const extra = [];
+  const seen = new Set();
+  for (const result of hits) {
+    for (const column of result.columns) {
+      if (!seen.has(column)) {
+        seen.add(column);
+        extra.push(column);
+      }
+    }
+  }
+  const headers = ["database", "server", "environment", ...extra];
+  const lines = [headers.map(csvEscape).join(",")];
+  for (const result of hits) {
+    const indexByName = Object.fromEntries(
+      result.columns.map((column, index) => [column, index])
+    );
+    for (const row of result.rows) {
+      const values = [
+        result.database,
+        result.serverName,
+        result.environment === "stage" ? "stage" : "prod",
+        ...extra.map((column) =>
+          Object.prototype.hasOwnProperty.call(indexByName, column)
+            ? row[indexByName[column]]
+            : ""
+        ),
+      ];
+      lines.push(values.map(csvEscape).join(","));
+    }
+  }
+  return `\uFEFF${lines.join("\r\n")}\r\n`;
+}
+
+function downloadCsv(contents) {
+  const stamp = new Date().toISOString().slice(0, 19).replaceAll(":", "");
+  const blob = new Blob([contents], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `multi-db-select-${stamp}.csv`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function setExportEnabled(enabled) {
+  exportButton.disabled = !enabled;
+}
+
+function exportResults() {
+  if (!lastExportResults.length) {
+    return;
+  }
+  downloadCsv(resultsToCsv(lastExportResults));
+}
+
 function renderQueryResults(results) {
   const visible = visibleQueryResults(results);
+  const exportable = visible.filter(
+    (result) => result.ok && result.rowCount > 0 && result.columns?.length
+  );
+  lastExportResults = exportable;
+  setExportEnabled(exportable.length > 0);
   resultsList.replaceChildren();
   setCurrentStep("results");
 
@@ -475,6 +552,7 @@ queryInput.addEventListener("input", () => {
   updateRunState();
 });
 runButton.addEventListener("click", runQuery);
+exportButton.addEventListener("click", exportResults);
 
 restoreSelection();
 restoreQuery();
