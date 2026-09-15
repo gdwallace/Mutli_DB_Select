@@ -1,7 +1,7 @@
 # Multi-DB Select
 
-Run one `SELECT` across more than one SQL Server. This first slice is the
-server picker: a checkbox list of Appian SQL hosts, with names and IPs.
+Run one `SELECT` across more than one SQL Server. Check the servers to
+include, then load their databases with `SELECT name FROM sys.databases`.
 
 ## Servers
 
@@ -30,6 +30,17 @@ python app.py
 ```
 
 Open [http://127.0.0.1:5000](http://127.0.0.1:5000).
+
+SQL credentials can be entered on the page, or stored in a local `.env`
+file based on `.env.example`:
+
+```
+MSSQL_USER=your_user
+MSSQL_PASSWORD=your_password
+```
+
+On Windows, check **Windows authentication** (or set `MSSQL_WINDOWS_AUTH=1`)
+to use the current login instead of SQL authentication.
 
 ## Tests
 

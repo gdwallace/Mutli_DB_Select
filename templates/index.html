@@ -13,15 +13,16 @@
         <p class="eyebrow">Multi-DB Select</p>
         <h1>Choose SQL servers</h1>
         <p class="lede">
-          Pick one or more servers. The same SELECT will run against each
-          selected instance.
+          Check the instances to include, then load their databases with
+          <code>SELECT name FROM sys.databases</code>.
         </p>
       </header>
 
       <ol class="steps" aria-label="Progress">
-        <li class="is-current">Servers</li>
-        <li>Query</li>
-        <li>Results</li>
+        <li data-step="servers" class="is-current">Servers</li>
+        <li data-step="databases">Databases</li>
+        <li data-step="query">Query</li>
+        <li data-step="results">Results</li>
       </ol>
 
       <section class="panel" aria-labelledby="servers-heading">
@@ -62,9 +63,44 @@
         </form>
       </section>
 
-      <p class="status" id="selection-summary" aria-live="polite">
-        No servers selected
-      </p>
+      <form class="credentials" id="credentials-form">
+        <p class="status" id="selection-summary" aria-live="polite">
+          No servers selected
+        </p>
+        <div class="credential-fields">
+          <label>
+            Username
+            <input id="sql-username" name="username" type="text" autocomplete="username" />
+          </label>
+          <label>
+            Password
+            <input id="sql-password" name="password" type="password" autocomplete="current-password" />
+          </label>
+          <label class="windows-auth">
+            <input id="windows-auth" name="windows_auth" type="checkbox" />
+            Windows authentication
+          </label>
+        </div>
+        <button type="submit" class="btn btn-primary" id="load-databases" disabled>
+          Load databases
+        </button>
+        <p class="form-error" id="load-error" hidden></p>
+      </form>
+
+      <section class="panel" id="database-panel" aria-labelledby="databases-heading" hidden>
+        <div class="panel-head">
+          <div>
+            <h2 id="databases-heading">Databases</h2>
+            <p class="panel-copy">Names returned from <code>sys.databases</code> on the selected servers.</p>
+          </div>
+          <div class="panel-actions">
+            <button type="button" class="btn" id="select-all-databases">Select all</button>
+            <button type="button" class="btn" id="clear-all-databases">Clear</button>
+          </div>
+        </div>
+        <ul class="database-list" id="database-list"></ul>
+        <p class="status" id="database-summary" aria-live="polite"></p>
+      </section>
     </main>
     <script src="{{ url_for('static', filename='app.js') }}"></script>
   </body>

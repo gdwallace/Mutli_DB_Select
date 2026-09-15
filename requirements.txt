@@ -1,2 +1,4 @@
 flask>=3.0,<4
+pymssql>=2.3,<3
+python-dotenv>=1.0,<2
 pytest>=8.0,<9
