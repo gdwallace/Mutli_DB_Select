@@ -27,6 +27,9 @@ def test_index_lists_each_server_name_and_host():
     assert 'id="prod-username"' in page
     assert 'id="stage-username"' in page
     assert 'id="sql-query"' in page
+    assert "workspace" in page
+    assert "database-scroll" in page
+    assert "results-scroll" in page
     for server in load_server_catalog():
         assert server["name"] in page
         if server.get("host"):

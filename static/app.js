@@ -11,7 +11,6 @@ const stageUsernameInput = document.getElementById("stage-username");
 const stagePasswordInput = document.getElementById("stage-password");
 const loadButton = document.getElementById("load-databases");
 const loadError = document.getElementById("load-error");
-const databasePanel = document.getElementById("database-panel");
 const databaseList = document.getElementById("database-list");
 const databaseSummary = document.getElementById("database-summary");
 const selectAllDatabasesButton = document.getElementById("select-all-databases");
@@ -19,7 +18,6 @@ const clearAllDatabasesButton = document.getElementById("clear-all-databases");
 const queryInput = document.getElementById("sql-query");
 const runButton = document.getElementById("run-query");
 const queryError = document.getElementById("query-error");
-const resultsPanel = document.getElementById("results-panel");
 const resultsList = document.getElementById("results-list");
 const resultsCopy = document.getElementById("results-copy");
 
@@ -194,7 +192,6 @@ function environmentLabel(environment) {
 
 function renderDatabaseResults(results) {
   databaseList.replaceChildren();
-  databasePanel.hidden = false;
   setCurrentStep("databases");
 
   const grouped = { prod: [], stage: [] };
@@ -297,7 +294,6 @@ function visibleQueryResults(results) {
 function renderQueryResults(results) {
   const visible = visibleQueryResults(results);
   resultsList.replaceChildren();
-  resultsPanel.hidden = false;
   setCurrentStep("results");
 
   if (!visible.length) {

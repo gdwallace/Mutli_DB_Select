@@ -91,24 +91,6 @@
         <p class="form-error" id="load-error" hidden></p>
       </form>
 
-      <section class="panel" id="database-panel" aria-labelledby="databases-heading" hidden>
-        <div class="panel-head">
-          <div>
-            <h2 id="databases-heading">Databases</h2>
-            <p class="panel-copy">
-              From <code>sys.databases</code>, excluding system databases plus DBA,
-              Hangfire*, Hydra*, msdb_oldstage, and PNET*.
-            </p>
-          </div>
-          <div class="panel-actions">
-            <button type="button" class="btn" id="select-all-databases">Select all</button>
-            <button type="button" class="btn" id="clear-all-databases">Clear</button>
-          </div>
-        </div>
-        <ul class="database-list" id="database-list"></ul>
-        <p class="status" id="database-summary" aria-live="polite"></p>
-      </section>
-
       <section class="panel query-panel" id="query-panel" aria-labelledby="query-heading">
         <div class="panel-head">
           <div>
@@ -121,7 +103,7 @@
           <textarea
             id="sql-query"
             name="query"
-            rows="8"
+            rows="5"
             spellcheck="false"
             placeholder="SELECT *"
           ></textarea>
@@ -130,15 +112,41 @@
         </div>
       </section>
 
-      <section class="panel" id="results-panel" aria-labelledby="results-heading" hidden>
-        <div class="panel-head">
-          <div>
-            <h2 id="results-heading">Results</h2>
-            <p class="panel-copy" id="results-copy">Matching databases only.</p>
+      <div class="workspace">
+        <section class="panel" id="database-panel" aria-labelledby="databases-heading">
+          <div class="panel-head">
+            <div>
+              <h2 id="databases-heading">Databases</h2>
+              <p class="panel-copy">
+                From <code>sys.databases</code>, excluding system databases plus DBA,
+                Hangfire*, Hydra*, msdb_oldstage, and PNET*.
+              </p>
+            </div>
+            <div class="panel-actions">
+              <button type="button" class="btn" id="select-all-databases">Select all</button>
+              <button type="button" class="btn" id="clear-all-databases">Clear</button>
+            </div>
           </div>
-        </div>
-        <div id="results-list"></div>
-      </section>
+          <div class="database-scroll">
+            <ul class="database-list" id="database-list">
+              <li class="empty-copy">Load databases to fill this list.</li>
+            </ul>
+          </div>
+          <p class="status" id="database-summary" aria-live="polite"></p>
+        </section>
+
+        <section class="panel" id="results-panel" aria-labelledby="results-heading">
+          <div class="panel-head">
+            <div>
+              <h2 id="results-heading">Results</h2>
+              <p class="panel-copy" id="results-copy">Matching databases only.</p>
+            </div>
+          </div>
+          <div class="results-scroll" id="results-list">
+            <p class="empty-copy">Run a query to see matching rows.</p>
+          </div>
+        </section>
+      </div>
     </main>
     <script src="{{ url_for('static', filename='app.js') }}"></script>
   </body>
