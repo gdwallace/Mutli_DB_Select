@@ -30,7 +30,21 @@ app = Flask(__name__)
 
 
 def load_server_catalog() -> list[dict]:
-    return json.loads(SERVERS_PATH.read_text(encoding="utf-8"))
+    raw = json.loads(SERVERS_PATH.read_text(encoding="utf-8"))
+    if isinstance(raw, dict):
+        servers = []
+        for env in ENVIRONMENTS:
+            for server in raw.get(env) or []:
+                servers.append({**server, "environment": env})
+        return servers
+    return raw
+
+
+def servers_by_environment() -> dict[str, list[dict]]:
+    grouped = {env: [] for env in ENVIRONMENTS}
+    for server in servers_with_addresses():
+        grouped[server["environment"]].append(server)
+    return grouped
 
 
 @lru_cache(maxsize=32)
@@ -123,8 +137,7 @@ def _error_response(message: str, status: int = 400):
 
 @app.get("/")
 def index():
-    servers = servers_with_addresses()
-    return render_template("index.html", servers=servers)
+    return render_template("index.html", servers_by_env=servers_by_environment())
 
 
 @app.get("/api/servers")

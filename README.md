@@ -1,22 +1,32 @@
 # Multi-DB Select
 
-Run one `SELECT` across more than one SQL Server. Check production and
-staging hosts, load their databases, then run the same query against the
-databases you pick.
+Run one `SELECT` across more than one SQL Server. Production and staging
+are separate lists, each with its own login. Check servers, load their
+databases, then run the same query against the databases you pick.
 
 ## Servers
 
-| Name | Host | IP | Environment |
-| --- | --- | --- | --- |
-| Butterfly | sql-butterfly.appian.trimblemaps.com | 192.168.224.66 | Production |
-| Tadpole | sql-tadpole.appian.trimblemaps.com | 192.168.224.205 | Production |
-| Milky Way | sql-milkyway.appian.trimblemaps.com | 192.168.224.202 | Production |
-| Fireworks | sql-fireworks.appian.trimblemaps.com | 192.168.224.80 | Production |
-| LAW SQL 01 | law-sql01.appian.trimblemaps.com | 192.168.224.174 | Production |
-| 10.228.2.38 | — | 10.228.2.38 | Production |
-| 192.168.224.61 | — | 192.168.224.61 | Production |
-| SQL 01 Staging | sql01.staging.appiantesting.com | 192.168.208.48 | Staging |
-| LAW SQL 02 Staging | law-sql02.staging.appiantesting.com | 192.168.208.48 | Staging |
+Configured in `servers.json` as two lists. Production credentials apply
+only to prod hosts; staging credentials apply only to stage hosts.
+
+### Production
+
+| Name | Host | IP |
+| --- | --- | --- |
+| Butterfly | sql-butterfly.appian.trimblemaps.com | 192.168.224.66 |
+| Tadpole | sql-tadpole.appian.trimblemaps.com | 192.168.224.205 |
+| Milky Way | sql-milkyway.appian.trimblemaps.com | 192.168.224.202 |
+| Fireworks | sql-fireworks.appian.trimblemaps.com | 192.168.224.80 |
+| LAW SQL 01 | law-sql01.appian.trimblemaps.com | 192.168.224.174 |
+| 10.228.2.38 | — | 10.228.2.38 |
+| 192.168.224.61 | — | 192.168.224.61 |
+
+### Staging
+
+| Name | Host | IP |
+| --- | --- | --- |
+| SQL 01 Staging | sql01.staging.appiantesting.com | 192.168.208.48 |
+| LAW SQL 02 Staging | law-sql02.staging.appiantesting.com | 192.168.208.48 |
 
 IPs are resolved from DNS when the page loads, and fall back to the values
 above if lookup fails.

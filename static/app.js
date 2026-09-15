@@ -4,8 +4,6 @@ const QUERY_STORAGE_KEY = "multiDbSelect.query";
 
 const checkboxes = [...document.querySelectorAll('input[name="servers"]')];
 const summary = document.getElementById("selection-summary");
-const selectAllButton = document.getElementById("select-all");
-const clearAllButton = document.getElementById("clear-all");
 const credentialsForm = document.getElementById("credentials-form");
 const prodUsernameInput = document.getElementById("prod-username");
 const prodPasswordInput = document.getElementById("prod-password");
@@ -56,17 +54,33 @@ function credentialPayload() {
   return credentials;
 }
 
-function updateSummary() {
-  const count = selectedIds().length;
-  const total = checkboxes.length;
+function envCheckboxes(env) {
+  return checkboxes.filter((box) => box.dataset.environment === env);
+}
 
-  if (count === 0) {
-    summary.textContent = "No servers selected";
-  } else if (count === 1) {
-    summary.textContent = `1 of ${total} servers selected`;
-  } else {
-    summary.textContent = `${count} of ${total} servers selected`;
+function envCount(env) {
+  const boxes = envCheckboxes(env);
+  return {
+    selected: boxes.filter((box) => box.checked).length,
+    total: boxes.length,
+  };
+}
+
+function updateSummary() {
+  const prod = envCount("prod");
+  const stage = envCount("stage");
+  const count = prod.selected + stage.selected;
+  const parts = [];
+  if (prod.selected) {
+    parts.push(`${prod.selected} of ${prod.total} production`);
   }
+  if (stage.selected) {
+    parts.push(`${stage.selected} of ${stage.total} staging`);
+  }
+
+  summary.textContent = parts.length
+    ? `${parts.join(", ")} selected`
+    : "No servers selected";
 
   loadButton.disabled = count === 0 || loadButton.dataset.loading === "true";
   updateRunState();
@@ -142,8 +156,8 @@ function restoreQuery() {
   }
 }
 
-function setAll(checked) {
-  checkboxes.forEach((box) => {
+function setEnvAll(env, checked) {
+  envCheckboxes(env).forEach((box) => {
     box.checked = checked;
   });
   persistSelection();
@@ -183,71 +197,82 @@ function renderDatabaseResults(results) {
   databasePanel.hidden = false;
   setCurrentStep("databases");
 
+  const grouped = { prod: [], stage: [] };
   for (const result of results) {
-    const group = document.createElement("li");
-    group.className = "db-group";
+    const env = result.environment === "stage" ? "stage" : "prod";
+    grouped[env].push(result);
+  }
 
-    const heading = document.createElement("div");
-    heading.className = "db-group-head";
-    const title = document.createElement("h3");
-    title.textContent = result.name;
-    const meta = document.createElement("span");
-    meta.className = "server-meta";
-    const env = document.createElement("span");
-    env.className = `env-pill is-${result.environment || "prod"}`;
-    env.textContent = environmentLabel(result.environment);
-    meta.append(env);
-    if (result.ip) {
-      const ip = document.createElement("span");
-      ip.className = "server-ip";
-      ip.textContent = result.ip;
-      meta.append(ip);
-    }
-    heading.append(title, meta);
-    group.append(heading);
-
-    if (!result.ok) {
-      const error = document.createElement("p");
-      error.className = "db-error";
-      error.textContent = result.error || "Could not load databases.";
-      group.append(error);
-      databaseList.append(group);
+  for (const env of ["prod", "stage"]) {
+    if (!grouped[env].length) {
       continue;
     }
+    const label = document.createElement("li");
+    label.className = `env-label is-${env}`;
+    label.textContent = env === "stage" ? "Staging" : "Production";
+    databaseList.append(label);
 
-    const dbs = document.createElement("ul");
-    dbs.className = "db-rows";
-    for (const database of result.databases) {
-      const item = document.createElement("li");
-      const label = document.createElement("label");
-      label.className = "server-row db-row";
-      const input = document.createElement("input");
-      input.type = "checkbox";
-      input.name = "databases";
-      input.value = database.name;
-      input.dataset.serverId = result.id;
-      input.addEventListener("change", () => {
-        persistDatabaseSelection();
-        updateDatabaseSummary();
-      });
-      const copy = document.createElement("span");
-      copy.className = "server-copy";
-      const name = document.createElement("span");
-      name.className = "server-name";
-      name.textContent = database.name;
-      copy.append(name);
-      if (database.system) {
-        const tag = document.createElement("span");
-        tag.className = "system-tag";
-        tag.textContent = "system";
-        copy.append(tag);
+    for (const result of grouped[env]) {
+      const group = document.createElement("li");
+      group.className = "db-group";
+
+      const heading = document.createElement("div");
+      heading.className = "db-group-head";
+      const title = document.createElement("h3");
+      title.textContent = result.name;
+      heading.append(title);
+      if (result.ip) {
+        const ip = document.createElement("span");
+        ip.className = "server-ip";
+        ip.textContent = result.ip;
+        heading.append(ip);
       }
-      label.append(input, copy);
-      item.append(label);
-      dbs.append(item);
+      group.append(heading);
+
+      if (!result.ok) {
+        const error = document.createElement("p");
+        error.className = "db-error";
+        error.textContent = result.error || "Could not load databases.";
+        group.append(error);
+        databaseList.append(group);
+        continue;
+      }
+
+      const dbs = document.createElement("ul");
+      dbs.className = "db-rows";
+      for (const database of result.databases) {
+        const item = document.createElement("li");
+        const rowLabel = document.createElement("label");
+        rowLabel.className = "server-row db-row";
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.name = "databases";
+        input.value = database.name;
+        input.dataset.serverId = result.id;
+        input.dataset.environment = env;
+        input.addEventListener("change", () => {
+          persistDatabaseSelection();
+          updateDatabaseSummary();
+        });
+        const copy = document.createElement("span");
+        copy.className = "server-copy";
+        const name = document.createElement("span");
+        name.className = "server-name";
+        name.textContent = database.name;
+        copy.append(name);
+        if (database.system) {
+          const tag = document.createElement("span");
+          tag.className = "system-tag";
+          tag.textContent = "system";
+          copy.append(tag);
+        }
+        rowLabel.append(input, copy);
+        item.append(rowLabel);
+        dbs.append(item);
+      }
+      group.append(dbs);
+      databaseList.append(group);
     }
-    group.append(dbs);
-    databaseList.append(group);
   }
 
   restoreDatabaseSelection();
@@ -441,10 +466,13 @@ checkboxes.forEach((box) => {
   });
 });
 
-selectAllButton.addEventListener("click", () => setAll(true));
-clearAllButton.addEventListener("click", () => setAll(false));
 selectAllDatabasesButton.addEventListener("click", () => setAllDatabases(true));
 clearAllDatabasesButton.addEventListener("click", () => setAllDatabases(false));
+document.querySelectorAll("[data-select-env]").forEach((button) => {
+  button.addEventListener("click", () => {
+    setEnvAll(button.dataset.selectEnv, button.dataset.checked !== "false");
+  });
+});
 credentialsForm.addEventListener("submit", loadDatabases);
 queryInput.addEventListener("input", () => {
   persistQuery();

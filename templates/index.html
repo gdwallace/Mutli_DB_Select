@@ -13,8 +13,8 @@
         <p class="eyebrow">Multi-DB Select</p>
         <h1>Choose SQL servers</h1>
         <p class="lede">
-          Check production and staging instances, load their databases, then run
-          one SELECT against the databases you pick.
+          Pick production and/or staging hosts. Each list has its own login,
+          used only for the servers in that list.
         </p>
       </header>
 
@@ -25,82 +25,66 @@
         <li data-step="results">Results</li>
       </ol>
 
-      <section class="panel" aria-labelledby="servers-heading">
+      {% macro env_panel(env, title, copy, servers) %}
+      <section class="panel env-panel is-{{ env }}" aria-labelledby="{{ env }}-heading">
         <div class="panel-head">
           <div>
-            <h2 id="servers-heading">Servers</h2>
-            <p class="panel-copy">Production and staging SQL hosts, with current IPs.</p>
+            <h2 id="{{ env }}-heading">{{ title }}</h2>
+            <p class="panel-copy">{{ copy }}</p>
           </div>
           <div class="panel-actions">
-            <button type="button" class="btn" id="select-all">Select all</button>
-            <button type="button" class="btn" id="clear-all">Clear</button>
+            <button type="button" class="btn" data-select-env="{{ env }}" data-checked="true">Select all</button>
+            <button type="button" class="btn" data-select-env="{{ env }}" data-checked="false">Clear</button>
           </div>
         </div>
-
-        <form id="server-form">
-          <ul class="server-list">
-            {% for server in servers %}
-            <li>
-              <label class="server-row">
-                <input
-                  type="checkbox"
-                  name="servers"
-                  value="{{ server.id }}"
-                  data-host="{{ server.host }}"
-                  data-ip="{{ server.ip }}"
-                  data-environment="{{ server.environment }}"
-                />
-                <span class="server-copy">
-                  <span class="server-name">{{ server.name }}</span>
-                  {% if server.host and server.host != server.name and server.host != server.ip %}
-                  <span class="server-host">{{ server.host }}</span>
-                  {% endif %}
-                </span>
-                <span class="server-meta">
-                  <span class="env-pill is-{{ server.environment }}">
-                    {{ "Prod" if server.environment == "prod" else "Stage" }}
-                  </span>
-                  <span class="server-ip">{{ server.ip }}</span>
-                </span>
-              </label>
-            </li>
-            {% endfor %}
-          </ul>
-        </form>
+        <ul class="server-list">
+          {% for server in servers %}
+          <li>
+            <label class="server-row">
+              <input
+                type="checkbox"
+                name="servers"
+                value="{{ server.id }}"
+                data-host="{{ server.host }}"
+                data-ip="{{ server.ip }}"
+                data-environment="{{ env }}"
+              />
+              <span class="server-copy">
+                <span class="server-name">{{ server.name }}</span>
+                {% if server.host and server.host != server.name and server.host != server.ip %}
+                <span class="server-host">{{ server.host }}</span>
+                {% endif %}
+              </span>
+              <span class="server-ip">{{ server.ip }}</span>
+            </label>
+          </li>
+          {% endfor %}
+        </ul>
+        <div class="env-credentials">
+          <p class="panel-copy">This login is used for every checked {{ title|lower }} server.</p>
+          <div class="credential-fields">
+            <label>
+              Username
+              <input id="{{ env }}-username" name="{{ env }}_username" type="text" autocomplete="username" />
+            </label>
+            <label>
+              Password
+              <input id="{{ env }}-password" name="{{ env }}_password" type="password" autocomplete="current-password" />
+            </label>
+          </div>
+        </div>
       </section>
+      {% endmacro %}
+
+      <div class="env-columns">
+        {{ env_panel("prod", "Production", "Prod SQL hosts. Production credentials apply only here.", servers_by_env.prod) }}
+        {{ env_panel("stage", "Staging", "Staging SQL hosts. Staging credentials apply only here.", servers_by_env.stage) }}
+      </div>
 
       <form class="credentials" id="credentials-form">
         <p class="status" id="selection-summary" aria-live="polite">
           No servers selected
         </p>
-        <div class="credential-sets">
-          <fieldset>
-            <legend>Production credentials</legend>
-            <div class="credential-fields">
-              <label>
-                Username
-                <input id="prod-username" name="prod_username" type="text" autocomplete="username" />
-              </label>
-              <label>
-                Password
-                <input id="prod-password" name="prod_password" type="password" autocomplete="current-password" />
-              </label>
-            </div>
-          </fieldset>
-          <fieldset>
-            <legend>Staging credentials</legend>
-            <div class="credential-fields">
-              <label>
-                Username
-                <input id="stage-username" name="stage_username" type="text" autocomplete="username" />
-              </label>
-              <label>
-                Password
-                <input id="stage-password" name="stage_password" type="password" autocomplete="current-password" />
-              </label>
-            </div>
-          </fieldset>
-        </div>
         <button type="submit" class="btn btn-primary" id="load-databases" disabled>
           Load databases
         </button>
@@ -126,7 +110,7 @@
         <div class="panel-head">
           <div>
             <h2 id="query-heading">Query</h2>
-            <p class="panel-copy">This SELECT runs against every checked database, using prod or stage credentials as needed.</p>
+            <p class="panel-copy">This SELECT runs against every checked database, using that list's production or staging login.</p>
           </div>
         </div>
         <div class="query-body">

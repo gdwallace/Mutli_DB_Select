@@ -175,6 +175,47 @@ code {
   background: #0948ad;
 }
 
+.env-columns {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.env-panel.is-prod {
+  border-left: 4px solid var(--accent);
+}
+
+.env-panel.is-stage {
+  border-left: 4px solid #9a6700;
+}
+
+.env-credentials {
+  padding: 0.9rem 1.15rem 1.1rem;
+  border-top: 1px solid var(--line);
+  background: linear-gradient(180deg, #fffdf8, #fbf7ef);
+}
+
+.env-credentials .panel-copy {
+  margin: 0 0 0.7rem;
+}
+
+.env-label {
+  padding: 0.7rem 1.15rem 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.env-label.is-prod {
+  color: var(--accent);
+}
+
+.env-label.is-stage {
+  color: #9a6700;
+}
+
 .server-list,
 .database-list,
 .db-rows {
@@ -272,26 +313,6 @@ code {
   display: grid;
   gap: 0.85rem;
   margin: 1rem 0 1.5rem;
-}
-
-.credential-sets {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.85rem;
-}
-
-.credential-sets fieldset {
-  margin: 0;
-  border: 1px solid var(--line);
-  border-radius: 0.9rem;
-  background: var(--surface);
-  padding: 0.85rem 1rem 1rem;
-}
-
-.credential-sets legend {
-  padding: 0 0.35rem;
-  font-size: 0.82rem;
-  font-weight: 700;
 }
 
 .credential-fields {
@@ -433,19 +454,14 @@ th {
   .panel-head,
   .server-row,
   .credential-fields,
-  .credential-sets {
-    grid-template-columns: auto 1fr;
+  .env-columns {
+    grid-template-columns: 1fr;
   }
 
   .panel-head,
   .credential-fields,
-  .credential-sets {
+  .env-columns {
     display: grid;
-  }
-
-  .credential-fields,
-  .credential-sets {
-    grid-template-columns: 1fr;
   }
 
   .server-meta,

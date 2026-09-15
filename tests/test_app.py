@@ -21,14 +21,34 @@ def test_index_lists_each_server_name_and_host():
 
     assert response.status_code == 200
     assert "Load databases" in page
-    assert "Production credentials" in page
-    assert "Staging credentials" in page
+    assert 'id="prod-heading"' in page
+    assert 'id="stage-heading"' in page
+    assert 'id="prod-username"' in page
+    assert 'id="stage-username"' in page
     assert 'id="sql-query"' in page
     for server in load_server_catalog():
         assert server["name"] in page
         if server.get("host"):
             assert server["host"] in page
         assert 'type="checkbox"' in page
+
+
+def test_catalog_is_split_into_prod_and_stage():
+    catalog = load_server_catalog()
+    by_env = {}
+    for server in catalog:
+        by_env.setdefault(server["environment"], []).append(server["id"])
+
+    assert by_env["prod"] == [
+        "sql-butterfly",
+        "sql-tadpole",
+        "sql-milkyway",
+        "sql-fireworks",
+        "law-sql01",
+        "10-228-2-38",
+        "192-168-224-61",
+    ]
+    assert by_env["stage"] == ["sql01-staging", "law-sql02-staging"]
 
 
 def test_api_servers_returns_catalog_with_ips():
