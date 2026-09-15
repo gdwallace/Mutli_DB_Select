@@ -254,29 +254,63 @@ function renderDatabaseResults(results) {
   updateDatabaseSummary();
 }
 
+function isMissingTargetError(error) {
+  return /invalid (object|column) name|cannot find the object|could not find|could not be bound|does not exist|unknown object|invalid object/i.test(
+    error || ""
+  );
+}
+
+function visibleQueryResults(results) {
+  return results.filter((result) => {
+    if (result.ok) {
+      return result.rowCount > 0;
+    }
+    return Boolean(result.error) && !isMissingTargetError(result.error);
+  });
+}
+
 function renderQueryResults(results) {
+  const visible = visibleQueryResults(results);
   resultsList.replaceChildren();
   resultsPanel.hidden = false;
   setCurrentStep("results");
 
-  const okCount = results.filter((result) => result.ok).length;
-  resultsCopy.textContent = `${okCount} of ${results.length} database queries succeeded.`;
+  if (!visible.length) {
+    resultsCopy.textContent = "No databases returned matching rows.";
+    const empty = document.createElement("p");
+    empty.className = "result-note";
+    empty.textContent =
+      "Databases where the table or column was not found were omitted.";
+    resultsList.append(empty);
+    return;
+  }
 
-  for (const result of results) {
+  resultsCopy.textContent =
+    visible.length === 1
+      ? "Found matching rows in 1 database."
+      : `Found matching rows in ${visible.length} databases.`;
+
+  for (const result of visible) {
     const block = document.createElement("article");
     block.className = "result-block";
 
     const heading = document.createElement("div");
     heading.className = "db-group-head";
+    const copy = document.createElement("div");
+    copy.className = "server-copy";
     const title = document.createElement("h3");
-    title.textContent = `${result.serverName} / ${result.database}`;
+    title.textContent = result.database;
+    const server = document.createElement("span");
+    server.className = "server-host";
+    server.textContent = result.serverName;
+    copy.append(title, server);
     const meta = document.createElement("span");
     meta.className = "server-meta";
     const env = document.createElement("span");
     env.className = `env-pill is-${result.environment || "prod"}`;
     env.textContent = environmentLabel(result.environment);
     meta.append(env);
-    heading.append(title, meta);
+    heading.append(copy, meta);
     block.append(heading);
 
     if (!result.ok) {

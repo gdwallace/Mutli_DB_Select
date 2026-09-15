@@ -15,6 +15,7 @@ from sql import (
     QueryError,
     assert_database_name,
     list_databases_for_servers,
+    matching_query_results,
     normalize_select,
     run_select_on_targets,
 )
@@ -170,7 +171,9 @@ def api_query():
     except QueryError as exc:
         return _error_response(str(exc))
 
-    return jsonify({"results": run_select_on_targets(targets, query, credentials)})
+    return jsonify(
+        {"results": matching_query_results(run_select_on_targets(targets, query, credentials))}
+    )
 
 
 if __name__ == "__main__":

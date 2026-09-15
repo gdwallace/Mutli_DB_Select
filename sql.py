@@ -20,6 +20,16 @@ _FORBIDDEN = re.compile(
     r"GRANT|REVOKE|BACKUP|RESTORE|KILL|SHUTDOWN|INTO)\b",
     re.IGNORECASE,
 )
+_MISSING_TARGET = re.compile(
+    r"invalid (object|column) name|"
+    r"cannot find the object|"
+    r"could not find|"
+    r"could not be bound|"
+    r"does not exist|"
+    r"unknown object|"
+    r"invalid object",
+    re.IGNORECASE,
+)
 
 try:
     import pymssql
@@ -236,6 +246,26 @@ def run_select(
         truncated=truncated,
     )
     return result
+
+
+def is_missing_target_error(error: str | None) -> bool:
+    if not error:
+        return False
+    return bool(_MISSING_TARGET.search(error))
+
+
+def matching_query_results(results: list[dict]) -> list[dict]:
+    """Keep only databases that returned rows; skip missing-table/column errors."""
+    visible = []
+    for result in results:
+        if result.get("ok"):
+            if result.get("rowCount"):
+                visible.append(result)
+            continue
+        if is_missing_target_error(result.get("error")):
+            continue
+        visible.append(result)
+    return visible
 
 
 def run_select_on_targets(

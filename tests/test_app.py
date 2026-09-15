@@ -1,7 +1,13 @@
 from unittest.mock import patch
 
 from app import app, load_server_catalog
-from sql import DATABASE_LIST_QUERY, QueryError, list_databases, normalize_select
+from sql import (
+    DATABASE_LIST_QUERY,
+    QueryError,
+    list_databases,
+    matching_query_results,
+    normalize_select,
+)
 
 
 PROD_CREDS = {"prod": {"username": "prod-user", "password": "prod-secret"}}
@@ -204,3 +210,83 @@ def test_api_query_runs_against_selected_databases(mock_run):
     assert targets[0][1] == "Appian"
     assert credentials["prod"]["password"] == "prod-secret"
     assert response.get_json()["results"][0]["rows"] == [["ok"]]
+
+
+def test_matching_query_results_keeps_hits_and_drops_missing_objects():
+    visible = matching_query_results(
+        [
+            {
+                "database": "MissingTable",
+                "ok": False,
+                "rowCount": 0,
+                "rows": [],
+                "error": "Invalid object name 'dbo.Foo'.",
+            },
+            {
+                "database": "EmptyTable",
+                "ok": True,
+                "rowCount": 0,
+                "rows": [],
+                "error": None,
+            },
+            {
+                "database": "Appian",
+                "ok": True,
+                "rowCount": 1,
+                "rows": [["found"]],
+                "error": None,
+            },
+            {
+                "database": "Denied",
+                "ok": False,
+                "rowCount": 0,
+                "rows": [],
+                "error": "Login failed for user 'prod-user'.",
+            },
+        ]
+    )
+    assert [result["database"] for result in visible] == ["Appian", "Denied"]
+
+
+@patch("app.run_select_on_targets")
+def test_api_query_omits_missing_table_errors(mock_run):
+    mock_run.return_value = [
+        {
+            "serverId": "sql-tadpole",
+            "serverName": "Tadpole",
+            "database": "OtherDb",
+            "ok": False,
+            "columns": [],
+            "rows": [],
+            "rowCount": 0,
+            "truncated": False,
+            "error": "Invalid object name 'dbo.Something'.",
+        },
+        {
+            "serverId": "sql-butterfly",
+            "serverName": "Butterfly",
+            "database": "Appian",
+            "ok": True,
+            "columns": ["name"],
+            "rows": [["ok"]],
+            "rowCount": 1,
+            "truncated": False,
+            "error": None,
+        },
+    ]
+
+    response = app.test_client().post(
+        "/api/query",
+        json={
+            "query": "SELECT name FROM dbo.Something",
+            "databases": [
+                {"serverId": "sql-tadpole", "name": "OtherDb"},
+                {"serverId": "sql-butterfly", "name": "Appian"},
+            ],
+            "credentials": PROD_CREDS,
+        },
+    )
+
+    payload = response.get_json()
+    assert response.status_code == 200
+    assert [result["database"] for result in payload["results"]] == ["Appian"]
