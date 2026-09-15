@@ -4,6 +4,7 @@ from app import app, load_server_catalog
 from sql import (
     DATABASE_LIST_QUERY,
     QueryError,
+    is_ignored_database,
     list_databases,
     matching_query_results,
     normalize_select,
@@ -134,7 +135,21 @@ def test_api_databases_uses_matching_environment_credentials(mock_list):
 @patch("sql.pymssql")
 def test_list_databases_runs_sys_databases_query(mock_pymssql):
     cursor = mock_pymssql.connect.return_value.cursor.return_value
-    cursor.fetchall.return_value = [("Appian",), ("master",)]
+    cursor.fetchall.return_value = [
+        ("Appian",),
+        ("master",),
+        ("DBA",),
+        ("Hangfire",),
+        ("HangfireJobs",),
+        ("Hydra",),
+        ("HydraTest",),
+        ("msdb",),
+        ("msdb_oldstage",),
+        ("model",),
+        ("PNET",),
+        ("PNET_APP",),
+        ("tempdb",),
+    ]
 
     result = list_databases(
         {
@@ -150,10 +165,30 @@ def test_list_databases_runs_sys_databases_query(mock_pymssql):
     cursor.execute.assert_called_once_with(DATABASE_LIST_QUERY)
     assert result["ok"] is True
     assert result["environment"] == "prod"
-    assert result["databases"] == [
-        {"name": "Appian", "system": False},
-        {"name": "master", "system": True},
+    assert result["databases"] == [{"name": "Appian", "system": False}]
+
+
+def test_ignored_database_patterns():
+    ignored = [
+        "master",
+        "MODEL",
+        "msdb",
+        "tempdb",
+        "DBA",
+        "dba",
+        "Hangfire",
+        "HangfireProd",
+        "Hydra",
+        "Hydra_QA",
+        "msdb_oldstage",
+        "PNET",
+        "PNET_MAPS",
     ]
+    kept = ["Appian", "Law", "masterdata"]
+    for name in ignored:
+        assert is_ignored_database(name), name
+    for name in kept:
+        assert not is_ignored_database(name), name
 
 
 def test_normalize_select_accepts_select_and_cte():
@@ -230,6 +265,28 @@ def test_api_query_runs_against_selected_databases(mock_run):
     assert targets[0][1] == "Appian"
     assert credentials["prod"]["password"] == "prod-secret"
     assert response.get_json()["results"][0]["rows"] == [["ok"]]
+
+
+@patch("app.run_select_on_targets")
+def test_api_query_skips_ignored_databases(mock_run):
+    mock_run.return_value = []
+
+    response = app.test_client().post(
+        "/api/query",
+        json={
+            "query": "SELECT 1",
+            "databases": [
+                {"serverId": "sql-butterfly", "name": "master"},
+                {"serverId": "sql-butterfly", "name": "HangfireJobs"},
+                {"serverId": "sql-butterfly", "name": "Appian"},
+            ],
+            "credentials": PROD_CREDS,
+        },
+    )
+
+    assert response.status_code == 200
+    targets = mock_run.call_args.args[0]
+    assert [database for _server, database in targets] == ["Appian"]
 
 
 def test_matching_query_results_keeps_hits_and_drops_missing_objects():

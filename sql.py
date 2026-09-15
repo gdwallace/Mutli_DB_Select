@@ -7,7 +7,17 @@ from decimal import Decimal
 from uuid import UUID
 
 DATABASE_LIST_QUERY = "SELECT name FROM sys.databases ORDER BY name"
-SYSTEM_DATABASES = frozenset({"master", "model", "msdb", "tempdb"})
+IGNORED_DATABASE_NAMES = frozenset(
+    {
+        "master",
+        "model",
+        "msdb",
+        "tempdb",
+        "dba",
+        "msdb_oldstage",
+    }
+)
+IGNORED_DATABASE_PREFIXES = ("hangfire", "hydra", "pnet")
 ENVIRONMENTS = ("prod", "stage")
 LOGIN_TIMEOUT_SECONDS = 8
 QUERY_TIMEOUT_SECONDS = 30
@@ -117,6 +127,19 @@ def normalize_select(sql: str) -> str:
     return query
 
 
+def is_ignored_database(name: object) -> bool:
+    if not isinstance(name, str) or not name.strip():
+        return False
+    lowered = name.strip().lower()
+    if lowered in IGNORED_DATABASE_NAMES:
+        return True
+    return any(lowered.startswith(prefix) for prefix in IGNORED_DATABASE_PREFIXES)
+
+
+def visible_database_names(names: list[object]) -> list[str]:
+    return [str(name) for name in names if not is_ignored_database(name)]
+
+
 def assert_database_name(name: object) -> str:
     if not isinstance(name, str):
         raise QueryError("Invalid database selection.")
@@ -173,8 +196,7 @@ def list_databases(server: dict, credentials: dict) -> dict:
 
     result["ok"] = True
     result["databases"] = [
-        {"name": name, "system": str(name).lower() in SYSTEM_DATABASES}
-        for name in names
+        {"name": name, "system": False} for name in visible_database_names(names)
     ]
     return result
 

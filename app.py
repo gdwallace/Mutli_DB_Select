@@ -14,6 +14,7 @@ from sql import (
     ENVIRONMENTS,
     QueryError,
     assert_database_name,
+    is_ignored_database,
     list_databases_for_servers,
     matching_query_results,
     normalize_select,
@@ -176,7 +177,13 @@ def api_query():
             server_id = item.get("serverId")
             if server_id not in catalog:
                 raise QueryError("Unknown server selection.")
-            targets.append((catalog[server_id], assert_database_name(item.get("name"))))
+            database = assert_database_name(item.get("name"))
+            if is_ignored_database(database):
+                continue
+            targets.append((catalog[server_id], database))
+
+        if not targets:
+            raise QueryError("Select at least one database.")
 
         credentials = parse_env_credentials(
             payload, {server["environment"] for server, _database in targets}

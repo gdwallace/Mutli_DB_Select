@@ -95,7 +95,10 @@
         <div class="panel-head">
           <div>
             <h2 id="databases-heading">Databases</h2>
-            <p class="panel-copy">Names returned from <code>sys.databases</code> on the selected servers.</p>
+            <p class="panel-copy">
+              From <code>sys.databases</code>, excluding system databases plus DBA,
+              Hangfire*, Hydra*, msdb_oldstage, and PNET*.
+            </p>
           </div>
           <div class="panel-actions">
             <button type="button" class="btn" id="select-all-databases">Select all</button>

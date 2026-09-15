@@ -76,6 +76,9 @@ The query box accepts a single `SELECT` (including `WITH` CTEs). It runs
 against every checked database, using the credentials that match that
 server's environment.
 
+Database lists omit system databases (`master`, `model`, `msdb`, `tempdb`)
+plus `DBA`, `Hangfire*`, `Hydra*`, `msdb_oldstage`, and `PNET*`.
+
 ## Tests
 
 ```bash
