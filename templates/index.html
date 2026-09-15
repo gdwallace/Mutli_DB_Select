@@ -13,8 +13,8 @@
         <p class="eyebrow">Multi-DB Select</p>
         <h1>Choose SQL servers</h1>
         <p class="lede">
-          Check the instances to include, then load their databases with
-          <code>SELECT name FROM sys.databases</code>.
+          Check production and staging instances, load their databases, then run
+          one SELECT against the databases you pick.
         </p>
       </header>
 
@@ -29,7 +29,7 @@
         <div class="panel-head">
           <div>
             <h2 id="servers-heading">Servers</h2>
-            <p class="panel-copy">Names and current IPs for each Appian SQL host.</p>
+            <p class="panel-copy">Production and staging SQL hosts, with current IPs.</p>
           </div>
           <div class="panel-actions">
             <button type="button" class="btn" id="select-all">Select all</button>
@@ -48,6 +48,7 @@
                   value="{{ server.id }}"
                   data-host="{{ server.host }}"
                   data-ip="{{ server.ip }}"
+                  data-environment="{{ server.environment }}"
                 />
                 <span class="server-copy">
                   <span class="server-name">{{ server.name }}</span>
@@ -55,7 +56,12 @@
                   <span class="server-host">{{ server.host }}</span>
                   {% endif %}
                 </span>
-                <span class="server-ip">{{ server.ip }}</span>
+                <span class="server-meta">
+                  <span class="env-pill is-{{ server.environment }}">
+                    {{ "Prod" if server.environment == "prod" else "Stage" }}
+                  </span>
+                  <span class="server-ip">{{ server.ip }}</span>
+                </span>
               </label>
             </li>
             {% endfor %}
@@ -67,19 +73,33 @@
         <p class="status" id="selection-summary" aria-live="polite">
           No servers selected
         </p>
-        <div class="credential-fields">
-          <label>
-            Username
-            <input id="sql-username" name="username" type="text" autocomplete="username" />
-          </label>
-          <label>
-            Password
-            <input id="sql-password" name="password" type="password" autocomplete="current-password" />
-          </label>
-          <label class="windows-auth">
-            <input id="windows-auth" name="windows_auth" type="checkbox" />
-            Windows authentication
-          </label>
+        <div class="credential-sets">
+          <fieldset>
+            <legend>Production credentials</legend>
+            <div class="credential-fields">
+              <label>
+                Username
+                <input id="prod-username" name="prod_username" type="text" autocomplete="username" />
+              </label>
+              <label>
+                Password
+                <input id="prod-password" name="prod_password" type="password" autocomplete="current-password" />
+              </label>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Staging credentials</legend>
+            <div class="credential-fields">
+              <label>
+                Username
+                <input id="stage-username" name="stage_username" type="text" autocomplete="username" />
+              </label>
+              <label>
+                Password
+                <input id="stage-password" name="stage_password" type="password" autocomplete="current-password" />
+              </label>
+            </div>
+          </fieldset>
         </div>
         <button type="submit" class="btn btn-primary" id="load-databases" disabled>
           Load databases
@@ -100,6 +120,37 @@
         </div>
         <ul class="database-list" id="database-list"></ul>
         <p class="status" id="database-summary" aria-live="polite"></p>
+      </section>
+
+      <section class="panel query-panel" id="query-panel" aria-labelledby="query-heading">
+        <div class="panel-head">
+          <div>
+            <h2 id="query-heading">Query</h2>
+            <p class="panel-copy">This SELECT runs against every checked database, using prod or stage credentials as needed.</p>
+          </div>
+        </div>
+        <div class="query-body">
+          <label class="query-label" for="sql-query">SQL</label>
+          <textarea
+            id="sql-query"
+            name="query"
+            rows="8"
+            spellcheck="false"
+            placeholder="SELECT *"
+          ></textarea>
+          <button type="button" class="btn btn-primary" id="run-query" disabled>Run query</button>
+          <p class="form-error" id="query-error" hidden></p>
+        </div>
+      </section>
+
+      <section class="panel" id="results-panel" aria-labelledby="results-heading" hidden>
+        <div class="panel-head">
+          <div>
+            <h2 id="results-heading">Results</h2>
+            <p class="panel-copy" id="results-copy">One result set per selected database.</p>
+          </div>
+        </div>
+        <div id="results-list"></div>
       </section>
     </main>
     <script src="{{ url_for('static', filename='app.js') }}"></script>

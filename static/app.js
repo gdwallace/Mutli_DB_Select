@@ -1,14 +1,16 @@
 const STORAGE_KEY = "multiDbSelect.servers";
 const DATABASE_STORAGE_KEY = "multiDbSelect.databases";
+const QUERY_STORAGE_KEY = "multiDbSelect.query";
 
 const checkboxes = [...document.querySelectorAll('input[name="servers"]')];
 const summary = document.getElementById("selection-summary");
 const selectAllButton = document.getElementById("select-all");
 const clearAllButton = document.getElementById("clear-all");
 const credentialsForm = document.getElementById("credentials-form");
-const usernameInput = document.getElementById("sql-username");
-const passwordInput = document.getElementById("sql-password");
-const windowsAuthInput = document.getElementById("windows-auth");
+const prodUsernameInput = document.getElementById("prod-username");
+const prodPasswordInput = document.getElementById("prod-password");
+const stageUsernameInput = document.getElementById("stage-username");
+const stagePasswordInput = document.getElementById("stage-password");
 const loadButton = document.getElementById("load-databases");
 const loadError = document.getElementById("load-error");
 const databasePanel = document.getElementById("database-panel");
@@ -16,6 +18,12 @@ const databaseList = document.getElementById("database-list");
 const databaseSummary = document.getElementById("database-summary");
 const selectAllDatabasesButton = document.getElementById("select-all-databases");
 const clearAllDatabasesButton = document.getElementById("clear-all-databases");
+const queryInput = document.getElementById("sql-query");
+const runButton = document.getElementById("run-query");
+const queryError = document.getElementById("query-error");
+const resultsPanel = document.getElementById("results-panel");
+const resultsList = document.getElementById("results-list");
+const resultsCopy = document.getElementById("results-copy");
 
 function selectedIds() {
   return checkboxes.filter((box) => box.checked).map((box) => box.value);
@@ -31,6 +39,23 @@ function selectedDatabases() {
     .map((box) => ({ serverId: box.dataset.serverId, name: box.value }));
 }
 
+function credentialPayload() {
+  const credentials = {};
+  if (prodUsernameInput.value || prodPasswordInput.value) {
+    credentials.prod = {
+      username: prodUsernameInput.value,
+      password: prodPasswordInput.value,
+    };
+  }
+  if (stageUsernameInput.value || stagePasswordInput.value) {
+    credentials.stage = {
+      username: stageUsernameInput.value,
+      password: stagePasswordInput.value,
+    };
+  }
+  return credentials;
+}
+
 function updateSummary() {
   const count = selectedIds().length;
   const total = checkboxes.length;
@@ -44,6 +69,7 @@ function updateSummary() {
   }
 
   loadButton.disabled = count === 0 || loadButton.dataset.loading === "true";
+  updateRunState();
 }
 
 function updateDatabaseSummary() {
@@ -51,12 +77,19 @@ function updateDatabaseSummary() {
   const count = boxes.filter((box) => box.checked).length;
   if (!boxes.length) {
     databaseSummary.textContent = "";
-    return;
+  } else if (count === 1) {
+    databaseSummary.textContent = `1 of ${boxes.length} databases selected`;
+  } else {
+    databaseSummary.textContent = `${count} of ${boxes.length} databases selected`;
   }
-  databaseSummary.textContent =
-    count === 1
-      ? `1 of ${boxes.length} databases selected`
-      : `${count} of ${boxes.length} databases selected`;
+  updateRunState();
+}
+
+function updateRunState() {
+  runButton.disabled =
+    selectedDatabases().length === 0 ||
+    !queryInput.value.trim() ||
+    runButton.dataset.loading === "true";
 }
 
 function persistSelection() {
@@ -65,6 +98,10 @@ function persistSelection() {
 
 function persistDatabaseSelection() {
   localStorage.setItem(DATABASE_STORAGE_KEY, JSON.stringify(selectedDatabases()));
+}
+
+function persistQuery() {
+  localStorage.setItem(QUERY_STORAGE_KEY, queryInput.value);
 }
 
 function restoreSelection() {
@@ -98,6 +135,13 @@ function restoreDatabaseSelection() {
   }
 }
 
+function restoreQuery() {
+  const saved = localStorage.getItem(QUERY_STORAGE_KEY);
+  if (typeof saved === "string") {
+    queryInput.value = saved;
+  }
+}
+
 function setAll(checked) {
   checkboxes.forEach((box) => {
     box.checked = checked;
@@ -120,20 +164,18 @@ function setCurrentStep(step) {
   });
 }
 
-function setLoadError(message) {
+function setFormError(element, message) {
   if (!message) {
-    loadError.hidden = true;
-    loadError.textContent = "";
+    element.hidden = true;
+    element.textContent = "";
     return;
   }
-  loadError.hidden = false;
-  loadError.textContent = message;
+  element.hidden = false;
+  element.textContent = message;
 }
 
-function setWindowsAuthState() {
-  const enabled = windowsAuthInput.checked;
-  usernameInput.disabled = enabled;
-  passwordInput.disabled = enabled;
+function environmentLabel(environment) {
+  return environment === "stage" ? "Stage" : "Prod";
 }
 
 function renderDatabaseResults(results) {
@@ -149,13 +191,19 @@ function renderDatabaseResults(results) {
     heading.className = "db-group-head";
     const title = document.createElement("h3");
     title.textContent = result.name;
-    heading.append(title);
+    const meta = document.createElement("span");
+    meta.className = "server-meta";
+    const env = document.createElement("span");
+    env.className = `env-pill is-${result.environment || "prod"}`;
+    env.textContent = environmentLabel(result.environment);
+    meta.append(env);
     if (result.ip) {
       const ip = document.createElement("span");
       ip.className = "server-ip";
       ip.textContent = result.ip;
-      heading.append(ip);
+      meta.append(ip);
     }
+    heading.append(title, meta);
     group.append(heading);
 
     if (!result.ok) {
@@ -206,6 +254,80 @@ function renderDatabaseResults(results) {
   updateDatabaseSummary();
 }
 
+function renderQueryResults(results) {
+  resultsList.replaceChildren();
+  resultsPanel.hidden = false;
+  setCurrentStep("results");
+
+  const okCount = results.filter((result) => result.ok).length;
+  resultsCopy.textContent = `${okCount} of ${results.length} database queries succeeded.`;
+
+  for (const result of results) {
+    const block = document.createElement("article");
+    block.className = "result-block";
+
+    const heading = document.createElement("div");
+    heading.className = "db-group-head";
+    const title = document.createElement("h3");
+    title.textContent = `${result.serverName} / ${result.database}`;
+    const meta = document.createElement("span");
+    meta.className = "server-meta";
+    const env = document.createElement("span");
+    env.className = `env-pill is-${result.environment || "prod"}`;
+    env.textContent = environmentLabel(result.environment);
+    meta.append(env);
+    heading.append(title, meta);
+    block.append(heading);
+
+    if (!result.ok) {
+      const error = document.createElement("p");
+      error.className = "db-error";
+      error.textContent = result.error || "Query failed.";
+      block.append(error);
+      resultsList.append(block);
+      continue;
+    }
+
+    const note = document.createElement("p");
+    note.className = "result-note";
+    note.textContent = result.truncated
+      ? `${result.rowCount} rows shown; additional rows were truncated.`
+      : `${result.rowCount} row${result.rowCount === 1 ? "" : "s"}`;
+    block.append(note);
+
+    if (!result.columns.length) {
+      resultsList.append(block);
+      continue;
+    }
+
+    const scroller = document.createElement("div");
+    scroller.className = "table-wrap";
+    const table = document.createElement("table");
+    const thead = document.createElement("thead");
+    const headRow = document.createElement("tr");
+    for (const column of result.columns) {
+      const th = document.createElement("th");
+      th.textContent = column;
+      headRow.append(th);
+    }
+    thead.append(headRow);
+    const tbody = document.createElement("tbody");
+    for (const row of result.rows) {
+      const tr = document.createElement("tr");
+      for (const value of row) {
+        const td = document.createElement("td");
+        td.textContent = value == null ? "" : String(value);
+        tr.append(td);
+      }
+      tbody.append(tr);
+    }
+    table.append(thead, tbody);
+    scroller.append(table);
+    block.append(scroller);
+    resultsList.append(block);
+  }
+}
+
 async function loadDatabases(event) {
   event.preventDefault();
   if (!selectedIds().length) {
@@ -215,37 +337,66 @@ async function loadDatabases(event) {
   loadButton.dataset.loading = "true";
   loadButton.disabled = true;
   loadButton.textContent = "Loading databases…";
-  setLoadError("");
-
-  const body = {
-    servers: selectedIds(),
-    windows_auth: windowsAuthInput.checked,
-  };
-  if (usernameInput.value) {
-    body.username = usernameInput.value;
-  }
-  if (passwordInput.value) {
-    body.password = passwordInput.value;
-  }
+  setFormError(loadError, "");
 
   try {
     const response = await fetch("/api/databases", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        servers: selectedIds(),
+        credentials: credentialPayload(),
+      }),
     });
     const payload = await response.json();
     if (!response.ok) {
-      setLoadError(payload.error || "Could not load databases.");
+      setFormError(loadError, payload.error || "Could not load databases.");
       return;
     }
     renderDatabaseResults(payload.results || []);
   } catch {
-    setLoadError("Could not reach the Multi-DB Select app.");
+    setFormError(loadError, "Could not reach the Multi-DB Select app.");
   } finally {
     loadButton.dataset.loading = "false";
     loadButton.textContent = "Load databases";
     updateSummary();
+  }
+}
+
+async function runQuery() {
+  const databases = selectedDatabases();
+  const query = queryInput.value.trim();
+  if (!databases.length || !query) {
+    return;
+  }
+
+  runButton.dataset.loading = "true";
+  runButton.disabled = true;
+  runButton.textContent = "Running query…";
+  setFormError(queryError, "");
+
+  try {
+    const response = await fetch("/api/query", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query,
+        databases,
+        credentials: credentialPayload(),
+      }),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      setFormError(queryError, payload.error || "Could not run the query.");
+      return;
+    }
+    renderQueryResults(payload.results || []);
+  } catch {
+    setFormError(queryError, "Could not reach the Multi-DB Select app.");
+  } finally {
+    runButton.dataset.loading = "false";
+    runButton.textContent = "Run query";
+    updateRunState();
   }
 }
 
@@ -260,9 +411,13 @@ selectAllButton.addEventListener("click", () => setAll(true));
 clearAllButton.addEventListener("click", () => setAll(false));
 selectAllDatabasesButton.addEventListener("click", () => setAllDatabases(true));
 clearAllDatabasesButton.addEventListener("click", () => setAllDatabases(false));
-windowsAuthInput.addEventListener("change", setWindowsAuthState);
 credentialsForm.addEventListener("submit", loadDatabases);
+queryInput.addEventListener("input", () => {
+  persistQuery();
+  updateRunState();
+});
+runButton.addEventListener("click", runQuery);
 
 restoreSelection();
-setWindowsAuthState();
+restoreQuery();
 updateSummary();

@@ -10,10 +10,18 @@ from pathlib import Path
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
 
-from sql import list_databases_for_servers
+from sql import (
+    ENVIRONMENTS,
+    QueryError,
+    assert_database_name,
+    list_databases_for_servers,
+    normalize_select,
+    run_select_on_targets,
+)
 
 ROOT = Path(__file__).resolve().parent
 SERVERS_PATH = ROOT / "servers.json"
+ENV_LABELS = {"prod": "production", "stage": "staging"}
 
 load_dotenv(ROOT / ".env")
 
@@ -41,11 +49,13 @@ def servers_with_addresses() -> list[dict]:
     for server in load_server_catalog():
         host = server.get("host")
         resolved = resolve_ip(host) if host else None
+        environment = server.get("environment") if server.get("environment") in ENVIRONMENTS else "prod"
         servers.append(
             {
                 **server,
                 "host": host or "",
                 "ip": resolved or server.get("ip") or "—",
+                "environment": environment,
             }
         )
     return servers
@@ -55,6 +65,59 @@ def _truthy(value: object) -> bool:
     if isinstance(value, bool):
         return value
     return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _selected_servers(payload: dict) -> list[dict]:
+    selected_ids = payload.get("servers") or []
+    if not isinstance(selected_ids, list) or not selected_ids:
+        raise QueryError("Select at least one server.")
+    if not all(isinstance(server_id, str) and server_id for server_id in selected_ids):
+        raise QueryError("Select at least one server.")
+
+    catalog = {server["id"]: server for server in servers_with_addresses()}
+    if any(server_id not in catalog for server_id in selected_ids):
+        raise QueryError("Unknown server selection.")
+    return [catalog[server_id] for server_id in selected_ids]
+
+
+def parse_env_credentials(payload: dict, environments: set[str] | list[str]) -> dict:
+    provided = payload.get("credentials") or {}
+    if not isinstance(provided, dict):
+        provided = {}
+
+    parsed = {}
+    missing = []
+    for env in ENVIRONMENTS:
+        if env not in environments:
+            continue
+        block = provided.get(env) or {}
+        if not isinstance(block, dict):
+            block = {}
+        username = (
+            block.get("username") or os.environ.get(f"MSSQL_{env.upper()}_USER") or ""
+        ).strip() or None
+        password = block.get("password") or os.environ.get(f"MSSQL_{env.upper()}_PASSWORD") or None
+        if isinstance(password, str):
+            password = password or None
+        windows_auth = _truthy(block.get("windows_auth")) or _truthy(
+            os.environ.get(f"MSSQL_{env.upper()}_WINDOWS_AUTH")
+        )
+        if not windows_auth and (not username or not password):
+            missing.append(env)
+        parsed[env] = {
+            "username": username,
+            "password": password,
+            "windows_auth": windows_auth,
+        }
+
+    if missing:
+        labels = " and ".join(ENV_LABELS[env] for env in missing)
+        raise QueryError(f"SQL username and password are required for {labels}.")
+    return parsed
+
+
+def _error_response(message: str, status: int = 400):
+    return jsonify({"error": message}), status
 
 
 @app.get("/")
@@ -71,35 +134,43 @@ def api_servers():
 @app.post("/api/databases")
 def api_databases():
     payload = request.get_json(silent=True) or {}
-    selected_ids = payload.get("servers") or []
-    if not isinstance(selected_ids, list) or not selected_ids:
-        return jsonify({"error": "Select at least one server."}), 400
-    if not all(isinstance(server_id, str) and server_id for server_id in selected_ids):
-        return jsonify({"error": "Select at least one server."}), 400
+    try:
+        selected = _selected_servers(payload)
+        credentials = parse_env_credentials(
+            payload, {server["environment"] for server in selected}
+        )
+    except QueryError as exc:
+        return _error_response(str(exc))
 
-    catalog = {server["id"]: server for server in servers_with_addresses()}
-    if any(server_id not in catalog for server_id in selected_ids):
-        return jsonify({"error": "Unknown server selection."}), 400
+    return jsonify({"results": list_databases_for_servers(selected, credentials)})
 
-    windows_auth = _truthy(payload.get("windows_auth")) or _truthy(
-        os.environ.get("MSSQL_WINDOWS_AUTH")
-    )
-    username = (payload.get("username") or os.environ.get("MSSQL_USER") or "").strip() or None
-    password = payload.get("password") or os.environ.get("MSSQL_PASSWORD") or None
-    if isinstance(password, str):
-        password = password or None
 
-    if not windows_auth and (not username or not password):
-        return jsonify({"error": "SQL username and password are required."}), 400
+@app.post("/api/query")
+def api_query():
+    payload = request.get_json(silent=True) or {}
+    try:
+        query = normalize_select(payload.get("query") or "")
+        raw_targets = payload.get("databases") or []
+        if not isinstance(raw_targets, list) or not raw_targets:
+            raise QueryError("Select at least one database.")
 
-    selected = [catalog[server_id] for server_id in selected_ids]
-    return jsonify(
-        {
-            "results": list_databases_for_servers(
-                selected, username, password, windows_auth
-            )
-        }
-    )
+        catalog = {server["id"]: server for server in servers_with_addresses()}
+        targets: list[tuple[dict, str]] = []
+        for item in raw_targets:
+            if not isinstance(item, dict):
+                raise QueryError("Invalid database selection.")
+            server_id = item.get("serverId")
+            if server_id not in catalog:
+                raise QueryError("Unknown server selection.")
+            targets.append((catalog[server_id], assert_database_name(item.get("name"))))
+
+        credentials = parse_env_credentials(
+            payload, {server["environment"] for server, _database in targets}
+        )
+    except QueryError as exc:
+        return _error_response(str(exc))
+
+    return jsonify({"results": run_select_on_targets(targets, query, credentials)})
 
 
 if __name__ == "__main__":
