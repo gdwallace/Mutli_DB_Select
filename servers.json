@@ -1,0 +1,32 @@
+[
+  {
+    "id": "sql-butterfly",
+    "name": "Butterfly",
+    "host": "sql-butterfly.appian.trimblemaps.com",
+    "ip": "192.168.224.66"
+  },
+  {
+    "id": "sql-tadpole",
+    "name": "Tadpole",
+    "host": "sql-tadpole.appian.trimblemaps.com",
+    "ip": "192.168.224.205"
+  },
+  {
+    "id": "sql-milkyway",
+    "name": "Milky Way",
+    "host": "sql-milkyway.appian.trimblemaps.com",
+    "ip": "192.168.224.202"
+  },
+  {
+    "id": "sql-fireworks",
+    "name": "Fireworks",
+    "host": "sql-fireworks.appian.trimblemaps.com",
+    "ip": "192.168.224.80"
+  },
+  {
+    "id": "law-sql01",
+    "name": "LAW SQL 01",
+    "host": "law-sql01.appian.trimblemaps.com",
+    "ip": "192.168.224.174"
+  }
+]
