@@ -23,14 +23,34 @@ above if lookup fails.
 
 ## Run locally
 
+On Windows, from the repo root (or double-click `launch.bat`):
+
+```bat
+launch.bat
+```
+
+That is the same pattern as the TBLINISETTINGS instance compare repo: `launch.bat` calls `scripts\launch.py`, which creates `.venv`, installs Python packages, copies `.env.example` to `.env` if needed, starts the site, and opens [http://127.0.0.1:5000](http://127.0.0.1:5000).
+
+You can also run the launcher directly:
+
+```bat
+scripts\launch.bat
+```
+
+or:
+
+```bash
+python3 scripts/launch.py
+```
+
+Manual setup still works:
+
 ```bash
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 python app.py
 ```
-
-Open [http://127.0.0.1:5000](http://127.0.0.1:5000).
 
 Production and staging use separate SQL logins. Enter them on the page,
 or store them in a local `.env` file based on `.env.example`:
