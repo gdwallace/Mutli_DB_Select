@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "Salesforce DX": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@salesforce/mcp@latest",
+        "--orgs",
+        "crmtransportation,gregory_wallace@trimble.com,DEFAULT_TARGET_ORG",
+        "--toolsets",
+        "orgs,metadata,data,users"
+      ]
+    }
+  }
+}
